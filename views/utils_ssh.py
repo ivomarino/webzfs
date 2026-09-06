@@ -51,6 +51,39 @@ async def ssh_add_form(request: Request):
     )
 
 
+@router.post("/register-existing")
+async def ssh_register_existing(
+    request: Request,
+    name: Annotated[str, Form()],
+    host: Annotated[str, Form()],
+    username: Annotated[str, Form()],
+    private_key_path: Annotated[str, Form()],
+    port: Annotated[int, Form()] = 22,
+    notes: Annotated[str, Form()] = "",
+):
+    """Register an SSH connection using an already-trusted private key,
+    instead of create_connection's own password-bootstrap flow.
+
+    JSON-only (no HTML form for this one -- it's aimed at scripted/IaC
+    callers that already manage their own key trust, not the browser
+    UI). `Accept: application/json` gets the new connection's id back;
+    a plain request still gets a JSON body too, since there's no
+    equivalent HTML page for this path.
+    """
+    try:
+        connection_id = ssh_service.register_existing_connection(
+            name=name,
+            host=host,
+            username=username,
+            private_key_path=private_key_path,
+            port=port,
+            notes=notes,
+        )
+        return JSONResponse({"id": connection_id, "name": name, "host": host, "status": "ok"})
+    except Exception as e:
+        return JSONResponse({"error": f"Failed to register connection: {str(e)}"}, status_code=400)
+
+
 @router.post("/add")
 async def ssh_add_submit(
     request: Request,
